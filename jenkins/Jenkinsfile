@@ -2,7 +2,7 @@ pipeline {
     agent { label 'docker' }
 
     tools {
-        maven 'maven'  // Make sure this name matches your Jenkins Maven config
+        maven 'maven'  // Must match the Maven name in Jenkins Global Tool Config
     }
 
     environment {
@@ -18,31 +18,28 @@ pipeline {
 
         stage('Build Microservices') {
             parallel {
-                stage('Build Product Service') {
+                stage('Product') {
                     steps {
                         dir('product-service') {
                             sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
-
-                stage('Build Order Service') {
+                stage('Order') {
                     steps {
                         dir('order-service') {
                             sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
-
-                stage('Build User Service') {
+                stage('User') {
                     steps {
                         dir('user-service') {
                             sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
-
-                stage('Build Gateway Service') {
+                stage('Gateway') {
                     steps {
                         dir('gateway-service') {
                             sh 'mvn clean package -DskipTests'
@@ -54,31 +51,28 @@ pipeline {
 
         stage('Build Docker Images') {
             parallel {
-                stage('Dockerize Product Service') {
+                stage('Product Image') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.product -t flipkart/product-service .'
                         }
                     }
                 }
-
-                stage('Dockerize Order Service') {
+                stage('Order Image') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.order -t flipkart/order-service .'
                         }
                     }
                 }
-
-                stage('Dockerize User Service') {
+                stage('User Image') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.user -t flipkart/user-service .'
                         }
                     }
                 }
-
-                stage('Dockerize Gateway Service') {
+                stage('Gateway Image') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.gateway -t flipkart/gateway-service .'
@@ -90,26 +84,33 @@ pipeline {
 
         stage('Run Docker Containers') {
             steps {
-                sh 'docker run -d -p 8080:8080 flipkart/product-service:latest'
-                sh 'docker run -d -p 8081:8081 flipkart/order-service:latest'
-                sh 'docker run -d -p 8082:8082 flipkart/user-service:latest'
-                sh 'docker run -d -p 8083:8083 flipkart/gateway-service:latest'
+                // Stop and remove old containers if running
+                sh '''
+                docker rm -f product || true
+                docker rm -f order || true
+                docker rm -f user || true
+                docker rm -f gateway || true
+                '''
+
+                // Run containers
+                sh 'docker run -d --name product -p 8080:8080 flipkart/product-service:latest'
+                sh 'docker run -d --name order -p 8081:8081 flipkart/order-service:latest'
+                sh 'docker run -d --name user -p 8082:8082 flipkart/user-service:latest'
+                sh 'docker run -d --name gateway -p 8083:8083 flipkart/gateway-service:latest'
             }
         }
     }
 
     post {
         success {
-            echo '🎉 Build and deployment completed successfully!'
+            echo '🎉 All microservices built and deployed successfully!'
         }
-
         failure {
             echo '❌ Build or deployment failed. Check logs.'
         }
-
         always {
-            echo '🧹 Cleaning up unused Docker resources...'
-            sh 'docker system prune -f'
+            echo '🧹 Cleaning up unused Docker resources'
+            sh 'docker system prune -f -a --volumes || true'
         }
     }
 }
