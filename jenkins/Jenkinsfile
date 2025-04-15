@@ -1,62 +1,60 @@
 pipeline {
-    agent none  // No global agent, will define per stage
+    agent { label 'docker' }
+
+    tools {
+        maven 'maven'  // Make sure this name matches your Jenkins Maven config
+    }
 
     environment {
         DOCKER_IMAGE_TAG = "latest"
     }
 
     stages {
-        stage('Checkout') {
-            agent any  // This runs on the master EC2 to checkout the code from GitHub
+        stage('Checkout Code') {
             steps {
-                checkout scm  // Checkout the code from GitHub
+                checkout scm
             }
         }
 
-        stage('Build & Test') {
+        stage('Build Microservices') {
             parallel {
                 stage('Build Product Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('product-service') {
-                            sh 'mvn clean package -DskipTests'  // Build the product service
+                            sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
 
                 stage('Build Order Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('order-service') {
-                            sh 'mvn clean package -DskipTests'  // Build the order service
+                            sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
 
                 stage('Build User Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('user-service') {
-                            sh 'mvn clean package -DskipTests'  // Build the user service
+                            sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
 
                 stage('Build Gateway Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('gateway-service') {
-                            sh 'mvn clean package -DskipTests'  // Build the gateway service
+                            sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
             }
         }
 
-        stage('Dockerize') {
+        stage('Build Docker Images') {
             parallel {
-                stage('Docker Product Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
+                stage('Dockerize Product Service') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.product -t flipkart/product-service .'
@@ -64,8 +62,7 @@ pipeline {
                     }
                 }
 
-                stage('Docker Order Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
+                stage('Dockerize Order Service') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.order -t flipkart/order-service .'
@@ -73,8 +70,7 @@ pipeline {
                     }
                 }
 
-                stage('Docker User Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
+                stage('Dockerize User Service') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.user -t flipkart/user-service .'
@@ -82,8 +78,7 @@ pipeline {
                     }
                 }
 
-                stage('Docker Gateway Service') {
-                    agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
+                stage('Dockerize Gateway Service') {
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.gateway -t flipkart/gateway-service .'
@@ -93,10 +88,8 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2') {
-            agent { label 'docker' }  // This runs on the slave EC2 (docker-node)
+        stage('Run Docker Containers') {
             steps {
-                // Run the docker containers locally on the slave EC2
                 sh 'docker run -d -p 8080:8080 flipkart/product-service:latest'
                 sh 'docker run -d -p 8081:8081 flipkart/order-service:latest'
                 sh 'docker run -d -p 8082:8082 flipkart/user-service:latest'
@@ -106,17 +99,17 @@ pipeline {
     }
 
     post {
-        always {
-            echo 'Cleaning up Docker images'
-            sh 'docker system prune -f'  // Clean up unused Docker images
-        }
-
         success {
-            echo 'Build and deploy succeeded!'
+            echo '🎉 Build and deployment completed successfully!'
         }
 
         failure {
-            echo 'Build or deploy failed!'
+            echo '❌ Build or deployment failed. Check logs.'
+        }
+
+        always {
+            echo '🧹 Cleaning up unused Docker resources...'
+            sh 'docker system prune -f'
         }
     }
 }
