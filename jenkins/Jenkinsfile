@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent none  // No global agent, will define per stage
 
     environment {
         DOCKER_IMAGE_TAG = "latest"
@@ -7,42 +7,46 @@ pipeline {
 
     stages {
         stage('Checkout') {
+            agent any  // This runs on the master EC2 to checkout the code from GitHub
             steps {
-                // Checkout the repository
-                checkout scm
+                checkout scm  // Checkout the code from GitHub
             }
         }
 
         stage('Build & Test') {
             parallel {
                 stage('Build Product Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('product-service') {
-                            sh 'mvn clean package -DskipTests'
+                            sh 'mvn clean package -DskipTests'  // Build the product service
                         }
                     }
                 }
 
                 stage('Build Order Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('order-service') {
-                            sh 'mvn clean package -DskipTests'
+                            sh 'mvn clean package -DskipTests'  // Build the order service
                         }
                     }
                 }
 
                 stage('Build User Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('user-service') {
-                            sh 'mvn clean package -DskipTests'
+                            sh 'mvn clean package -DskipTests'  // Build the user service
                         }
                     }
                 }
 
                 stage('Build Gateway Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('gateway-service') {
-                            sh 'mvn clean package -DskipTests'
+                            sh 'mvn clean package -DskipTests'  // Build the gateway service
                         }
                     }
                 }
@@ -52,6 +56,7 @@ pipeline {
         stage('Dockerize') {
             parallel {
                 stage('Docker Product Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.product -t flipkart/product-service .'
@@ -60,6 +65,7 @@ pipeline {
                 }
 
                 stage('Docker Order Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.order -t flipkart/order-service .'
@@ -68,6 +74,7 @@ pipeline {
                 }
 
                 stage('Docker User Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.user -t flipkart/user-service .'
@@ -76,6 +83,7 @@ pipeline {
                 }
 
                 stage('Docker Gateway Service') {
+                    agent { label 'node' }  // This runs on the slave EC2 (docker-node)
                     steps {
                         dir('docker') {
                             sh 'docker build -f Dockerfile.gateway -t flipkart/gateway-service .'
@@ -85,32 +93,22 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Deploy to EC2') {
+            agent { label 'node' }  // This runs on the slave EC2 (docker-node)
             steps {
-                // Push the images to Docker Hub (you'll need to log in to Docker Hub)
-                sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
-                sh 'docker push flipkart/product-service:$DOCKER_IMAGE_TAG'
-                sh 'docker push flipkart/order-service:$DOCKER_IMAGE_TAG'
-                sh 'docker push flipkart/user-service:$DOCKER_IMAGE_TAG'
-                sh 'docker push flipkart/gateway-service:$DOCKER_IMAGE_TAG'
-            }
-        }
-
-        stage('Deploy to AWS') {
-            steps {
-                // Add your deployment steps here (AWS, Kubernetes, etc.)
-                echo 'Deploying to AWS (ECS/EC2)'
-                // Example deployment (ECS, S3, etc.)
-                sh 'aws ecs update-service --cluster flipkart-cluster --service flipkart-service --force-new-deployment'
+                // Run the docker containers locally on the slave EC2
+                sh 'docker run -d -p 8080:8080 flipkart/product-service:latest'
+                sh 'docker run -d -p 8081:8081 flipkart/order-service:latest'
+                sh 'docker run -d -p 8082:8082 flipkart/user-service:latest'
+                sh 'docker run -d -p 8083:8083 flipkart/gateway-service:latest'
             }
         }
     }
 
     post {
         always {
-            // Clean up
-            echo 'Cleaning up'
-            sh 'docker system prune -f'
+            echo 'Cleaning up Docker images'
+            sh 'docker system prune -f'  // Clean up unused Docker images
         }
 
         success {
