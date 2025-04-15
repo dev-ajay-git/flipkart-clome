@@ -1,0 +1,25 @@
+# Java
+*.class
+*.jar
+*.war
+*.log
+
+# Maven
+target/
+dependency-reduced-pom.xml
+
+# IDEs
+*.iml
+.idea/
+*.ipr
+*.iws
+*.sw?
+
+# Docker
+*.env
+.env
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
