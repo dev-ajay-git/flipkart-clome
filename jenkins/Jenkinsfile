@@ -1,0 +1,124 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE_TAG = "latest"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout the repository
+                checkout scm
+            }
+        }
+
+        stage('Build & Test') {
+            parallel {
+                stage('Build Product Service') {
+                    steps {
+                        dir('product-service') {
+                            sh 'mvn clean package -DskipTests'
+                        }
+                    }
+                }
+
+                stage('Build Order Service') {
+                    steps {
+                        dir('order-service') {
+                            sh 'mvn clean package -DskipTests'
+                        }
+                    }
+                }
+
+                stage('Build User Service') {
+                    steps {
+                        dir('user-service') {
+                            sh 'mvn clean package -DskipTests'
+                        }
+                    }
+                }
+
+                stage('Build Gateway Service') {
+                    steps {
+                        dir('gateway-service') {
+                            sh 'mvn clean package -DskipTests'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Dockerize') {
+            parallel {
+                stage('Docker Product Service') {
+                    steps {
+                        dir('docker') {
+                            sh 'docker build -f Dockerfile.product -t flipkart/product-service .'
+                        }
+                    }
+                }
+
+                stage('Docker Order Service') {
+                    steps {
+                        dir('docker') {
+                            sh 'docker build -f Dockerfile.order -t flipkart/order-service .'
+                        }
+                    }
+                }
+
+                stage('Docker User Service') {
+                    steps {
+                        dir('docker') {
+                            sh 'docker build -f Dockerfile.user -t flipkart/user-service .'
+                        }
+                    }
+                }
+
+                stage('Docker Gateway Service') {
+                    steps {
+                        dir('docker') {
+                            sh 'docker build -f Dockerfile.gateway -t flipkart/gateway-service .'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                // Push the images to Docker Hub (you'll need to log in to Docker Hub)
+                sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                sh 'docker push flipkart/product-service:$DOCKER_IMAGE_TAG'
+                sh 'docker push flipkart/order-service:$DOCKER_IMAGE_TAG'
+                sh 'docker push flipkart/user-service:$DOCKER_IMAGE_TAG'
+                sh 'docker push flipkart/gateway-service:$DOCKER_IMAGE_TAG'
+            }
+        }
+
+        stage('Deploy to AWS') {
+            steps {
+                // Add your deployment steps here (AWS, Kubernetes, etc.)
+                echo 'Deploying to AWS (ECS/EC2)'
+                // Example deployment (ECS, S3, etc.)
+                sh 'aws ecs update-service --cluster flipkart-cluster --service flipkart-service --force-new-deployment'
+            }
+        }
+    }
+
+    post {
+        always {
+            // Clean up
+            echo 'Cleaning up'
+            sh 'docker system prune -f'
+        }
+
+        success {
+            echo 'Build and deploy succeeded!'
+        }
+
+        failure {
+            echo 'Build or deploy failed!'
+        }
+    }
+}
