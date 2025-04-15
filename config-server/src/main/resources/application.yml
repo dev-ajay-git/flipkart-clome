@@ -9,5 +9,5 @@ spring:
     config:
       server:
         git:
-          uri: https://github.com/your-username/flipkart-config
+          uri: https://github.com/dev-ajay-git/flipkart-config
           default-label: main
