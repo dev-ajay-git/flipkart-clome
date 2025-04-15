@@ -1,35 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
+    <!-- Add the modelVersion here -->
+    <modelVersion>4.0.0</modelVersion>  <!-- This is mandatory for Maven POM files -->
+
     <parent>
         <groupId>com.flipkart</groupId>
         <artifactId>flipkart-clone</artifactId>
         <version>1.0.0</version>
-        <relativePath>../pom.xml</relativePath> <!-- Relative path to parent POM -->
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>product-service</artifactId>
 
     <dependencies>
-        <!-- Spring Boot Starter -->
+        <!-- Add your dependencies here -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
-        <!-- Spring Data JPA (optional, for DB integration) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-
-        <!-- Lombok (optional for reducing boilerplate code) -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>2022.0.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>
